@@ -1,10 +1,10 @@
-import { withCache } from './cache';
+import { withCache, withDataCache } from './cache';
 import { getBooleanParam, getColorParam } from './params';
 import { getLanguagesGraphQL } from './github';
 import { createTopLanguagesSvg } from './svg/top-languages';
 import type { Env, LanguageStats } from './types';
 
-async function getTopLanguages(url: URL, env: Env): Promise<Response> {
+async function getTopLanguages(url: URL, env: Env, ctx: ExecutionContext): Promise<Response> {
   const username = url.searchParams.get('username');
 
   if (!username) {
@@ -21,7 +21,8 @@ async function getTopLanguages(url: URL, env: Env): Promise<Response> {
     const langsCount = Math.min(Math.max(Number(url.searchParams.get('langs_count') ?? '5'), 1), 20);
 
     try {
-      const languages = await getLanguagesGraphQL(username, env.GITHUB_TOKEN);
+      const key = `langs:${username}`;
+      const languages = await withDataCache(env, ctx, key, () => getLanguagesGraphQL(username, env.GITHUB_TOKEN));
       const totalBytes = languages.reduce((total, language) => total + language.bytes, 0);
 
       const languageStats: LanguageStats[] = languages

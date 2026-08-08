@@ -1,12 +1,12 @@
 import { Octokit } from 'octokit';
 
-import { withCache } from './cache';
+import { withCache, withDataCache } from './cache';
 import { getBooleanParam, getColorParam } from './params';
 import { getRepositories } from './github';
 import { createStatsSvg } from './svg/stats-card';
 import type { Env, Stats } from './types';
 
-async function getStats(url: URL, env: Env): Promise<Response> {
+async function getStats(url: URL, env: Env, ctx: ExecutionContext): Promise<Response> {
   const username = url.searchParams.get('username');
 
   if (!username) {
@@ -24,31 +24,34 @@ async function getStats(url: URL, env: Env): Promise<Response> {
     const textColor = getColorParam(url.searchParams.get('text_color'), '#cdd6f4');
     const bgColor = getColorParam(url.searchParams.get('bg_color'), '#1e1e2e');
 
-    const octokit = new Octokit({
-      auth: env.GITHUB_TOKEN,
-    });
-
     try {
-      const [user, repos] = await Promise.all([
-        octokit.rest.users.getByUsername({
-          username,
-        }),
-        getRepositories(octokit, username, countPrivate),
-      ]);
+      const key = `stats:${username}${countPrivate ? ':private' : ''}`;
+      const stats = await withDataCache(env, ctx, key, async () => {
+        const octokit = new Octokit({
+          auth: env.GITHUB_TOKEN,
+        });
 
-      const totalStars = repos.reduce((total, repo) => total + Number(repo.stargazers_count ?? 0), 0);
-      const totalForks = repos.reduce((total, repo) => total + Number(repo.forks_count ?? 0), 0);
+        const [user, repos] = await Promise.all([
+          octokit.rest.users.getByUsername({
+            username,
+          }),
+          getRepositories(octokit, username, countPrivate),
+        ]);
 
-      const repositories = countPrivate ? repos.length : user.data.public_repos;
+        const totalStars = repos.reduce((total, repo) => total + Number(repo.stargazers_count ?? 0), 0);
+        const totalForks = repos.reduce((total, repo) => total + Number(repo.forks_count ?? 0), 0);
 
-      const stats: Stats = {
-        username: user.data.login,
-        repositories,
-        followers: user.data.followers,
-        following: user.data.following,
-        stars: totalStars,
-        forks: totalForks,
-      };
+        const repositories = countPrivate ? repos.length : user.data.public_repos;
+
+        return {
+          username: user.data.login,
+          repositories,
+          followers: user.data.followers,
+          following: user.data.following,
+          stars: totalStars,
+          forks: totalForks,
+        } satisfies Stats;
+      });
 
       const svg = createStatsSvg(stats, {
         showIcons,

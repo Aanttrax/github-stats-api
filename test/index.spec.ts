@@ -117,6 +117,37 @@ describe('/api', () => {
 		expect(second.headers.get('X-Cache-Status')).toBe('HIT');
 		expect(await second.text()).toBe(await first.text());
 	});
+
+	it('serves stale cached data while refreshing in the background', async () => {
+		// Pre-seed KV with a 2-hour-old entry (fresh window is 1h, max age 24h).
+		await env.STATS_CACHE.put(
+			'stats:octocat',
+			JSON.stringify({
+				fetchedAt: Date.now() - 2 * 60 * 60 * 1000,
+				data: {
+					username: 'octocat',
+					repositories: 12,
+					followers: 5,
+					following: 3,
+					stars: 999,
+					forks: 999,
+				},
+			}),
+		);
+
+		// Use a URL that was not edge-cached by earlier tests so the request
+		// actually reaches the KV layer.
+		const response = await fetchWorker('/api?username=octocat&title_color=111111');
+		expect(response.status).toBe(200);
+
+		const body = await response.text();
+		expect(body).toContain('STARS');
+		expect(body).toContain('999'); // stale stars from KV, not the mocked 50
+
+		// The background refresh ran and persisted fresh data.
+		const entry = await env.STATS_CACHE.get('stats:octocat', 'json');
+		expect(entry.data.stars).toBe(50);
+	});
 });
 
 describe('/api/top-langs', () => {
