@@ -145,7 +145,7 @@ src/
 ├── languages.ts        # /api/top-langs handler
 └── svg/                # SVG rendering helpers and card templates
 test/
-└── index.spec.ts       # Endpoint tests (8) with mocked GitHub
+└── index.spec.ts       # Endpoint tests (9) with mocked GitHub
 ```
 
 ## Security
@@ -153,3 +153,4 @@ test/
 - No secrets are committed: `.dev.vars` and `.wrangler/` are gitignored.
 - Worker secrets (`GITHUB_TOKEN`) are stored in Cloudflare and never appear in code or CI logs.
 - The KV namespace ID and account ID in `wrangler.jsonc` identify resources; they are not credentials.
+- Per-IP rate limiting (default 120 requests/min, configurable via `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_SECONDS`) blocks abusive clients with `429 Too Many Requests` before they can exhaust the GitHub quota. It is fail-open: a storage error never breaks a badge.
