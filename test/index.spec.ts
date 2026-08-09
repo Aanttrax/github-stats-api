@@ -69,7 +69,35 @@ async function fetchWorker(path: string): Promise<Response> {
 	return response;
 }
 
+async function fetchWorkerWithIp(ip: string, path: string): Promise<Response> {
+	const request = new IncomingRequest(`http://example.com${path}`, {
+		headers: { 'CF-Connecting-IP': ip },
+	});
+	const ctx = createExecutionContext();
+	const response = await worker.fetch(request, env, ctx);
+	await waitOnExecutionContext(ctx);
+	return response;
+}
+
 // --- Tests -----------------------------------------------------------------
+
+describe('rate limit', () => {
+	it('blocks a client after exceeding the per-window limit', async () => {
+		// Small limit for this test only; other tests send no client IP.
+		env.RATE_LIMIT_MAX = 3;
+		env.RATE_LIMIT_WINDOW_SECONDS = 60;
+
+		const ip = '198.51.100.7';
+		for (let i = 0; i < 3; i++) {
+			const response = await fetchWorkerWithIp(ip, '/');
+			expect(response.status).toBe(200);
+		}
+
+		const blocked = await fetchWorkerWithIp(ip, '/');
+		expect(blocked.status).toBe(429);
+		expect(blocked.headers.get('Retry-After')).toBe('60');
+	});
+});
 
 describe('router', () => {
 	it('returns a text greeting at the root', async () => {

@@ -1,6 +1,8 @@
 interface Env {
   GITHUB_TOKEN?: string;
   STATS_CACHE: KVNamespace;
+  RATE_LIMIT_MAX: number;
+  RATE_LIMIT_WINDOW_SECONDS: number;
 }
 
 interface Stats {

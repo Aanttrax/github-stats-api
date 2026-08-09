@@ -1,10 +1,16 @@
 import { getStats } from './stats';
 import { getTopLanguages } from './languages';
+import { checkRateLimit } from './ratelimit';
 import type { Env } from './types';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    const blocked = await checkRateLimit(env, request);
+    if (blocked) {
+      return blocked;
+    }
 
     if (url.pathname === '/api') {
       return getStats(url, env, ctx);
