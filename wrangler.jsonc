@@ -5,6 +5,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "github-stats-api",
+	"account_id": "5f37e2d060f099288116438c9b29482b",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-08-08",
 	"observability": {
