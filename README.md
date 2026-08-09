@@ -1,5 +1,7 @@
 # GitHub Stats API
 
+![GitHubStats](./screenShots/screenshot1.webp)
+
 GitHub profile statistics and top-languages **badges rendered as SVGs on the fly**, served from a Cloudflare Worker at the edge — no server, no database, no cost per request beyond Workers.
 
 Drop a badge into your GitHub profile README and it always renders: the data layer caches GitHub responses in KV and serves stale data with a background refresh instead of failing when GitHub rate limits hit.
@@ -22,18 +24,7 @@ Drop a badge into your GitHub profile README and it always renders: the data lay
 
 ## How it works
 
-```
-        ┌──────────────┐   ┌─────────────────────────┐   ┌──────────────────────┐
- User → │ Cloudflare   │ → │ Worker edge cache       │ → │ KV data cache        │
-        │ CDN          │   │ (caches.default)        │   │ (stats:, langs:)     │
-        │ cf-cache-…   │   │ s-maxage=1800           │   │ 1 h fresh / 24 h max │
-        └──────────────┘   └─────────────────────────┘   └──────────┬───────────┘
-                                                                    │ miss / expired
-                                                             ┌──────▼───────────┐
-                                                             │ GitHub API       │
-                                                             │ (REST + GraphQL) │
-                                                             └──────────────────┘
-```
+![HowItWorks](./screenShots/screenshot2.webp)
 
 1. **Cloudflare CDN** (`cf-cache-status`) caches the final SVG globally.
 2. **Worker edge cache** (`caches.default`, `X-Cache-Status`) short-circuits repeated requests per data center.
